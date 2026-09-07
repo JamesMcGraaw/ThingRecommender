@@ -13,7 +13,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.Email).HasMaxLength(320).IsRequired();
         builder.HasIndex(u => u.Email).IsUnique();
 
-        // Stubbed test users until real sign-in (Google/Microsoft) is wired up.
+        // Seeded so local dev has data to look at; a real sign-in with a matching email links to these
+        // rather than creating duplicates (see AuthService).
         builder.HasData(
             new User { Id = SeedUserIds.Alice, DisplayName = "Alice", Email = "alice@example.com" },
             new User { Id = SeedUserIds.Bob, DisplayName = "Bob", Email = "bob@example.com" });

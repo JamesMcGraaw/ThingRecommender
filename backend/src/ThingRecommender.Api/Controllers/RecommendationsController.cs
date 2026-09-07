@@ -1,8 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ThingRecommender.Api.Auth;
 using ThingRecommender.Application.Recommendations;
 
 namespace ThingRecommender.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class RecommendationsController(IRecommendationService recommendationService) : ControllerBase
@@ -10,7 +13,7 @@ public class RecommendationsController(IRecommendationService recommendationServ
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<RecommendationResponse>>> GetAll(CancellationToken cancellationToken)
     {
-        return Ok(await recommendationService.GetAllAsync(cancellationToken));
+        return Ok(await recommendationService.GetForUserAsync(User.GetUserId(), cancellationToken));
     }
 
     [HttpPost]
@@ -18,7 +21,7 @@ public class RecommendationsController(IRecommendationService recommendationServ
         CreateRecommendationRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await recommendationService.CreateAsync(request, cancellationToken);
+        var result = await recommendationService.CreateAsync(User.GetUserId(), request, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
@@ -28,8 +31,8 @@ public class RecommendationsController(IRecommendationService recommendationServ
         RateRecommendationRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await recommendationService.RateAsync(id, request.Score, cancellationToken);
-        return result is null ? NotFound() : Ok(result);
+        var result = await recommendationService.RateAsync(User.GetUserId(), id, request.Score, cancellationToken);
+        return Ok(result);
     }
 
     [HttpGet("strength")]
@@ -38,6 +41,6 @@ public class RecommendationsController(IRecommendationService recommendationServ
         [FromQuery] Guid recipientId,
         CancellationToken cancellationToken)
     {
-        return Ok(await recommendationService.GetStrengthAsync(recommenderId, recipientId, cancellationToken));
+        return Ok(await recommendationService.GetStrengthAsync(User.GetUserId(), recommenderId, recipientId, cancellationToken));
     }
 }

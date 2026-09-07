@@ -2,12 +2,15 @@ namespace ThingRecommender.Application.Recommendations;
 
 public interface IRecommendationService
 {
-    Task<RecommendationResponse> CreateAsync(CreateRecommendationRequest request, CancellationToken cancellationToken = default);
+    /// <summary>Throws NotFoundException if no account exists for the recipient's email yet.</summary>
+    Task<RecommendationResponse> CreateAsync(Guid recommenderId, CreateRecommendationRequest request, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<RecommendationResponse>> GetAllAsync(CancellationToken cancellationToken = default);
+    /// <summary>Recommendations where currentUserId is the recommender or the recipient.</summary>
+    Task<IReadOnlyList<RecommendationResponse>> GetForUserAsync(Guid currentUserId, CancellationToken cancellationToken = default);
 
-    /// <summary>Returns null if no recommendation with that ID exists.</summary>
-    Task<RecommendationResponse?> RateAsync(Guid recommendationId, int score, CancellationToken cancellationToken = default);
+    /// <summary>Throws NotFoundException if unknown, ForbiddenException if currentUserId isn't the recipient.</summary>
+    Task<RecommendationResponse> RateAsync(Guid currentUserId, Guid recommendationId, int score, CancellationToken cancellationToken = default);
 
-    Task<RecommendationStrengthResponse> GetStrengthAsync(Guid recommenderId, Guid recipientId, CancellationToken cancellationToken = default);
+    /// <summary>Throws ForbiddenException unless currentUserId is one of the two parties.</summary>
+    Task<RecommendationStrengthResponse> GetStrengthAsync(Guid currentUserId, Guid recommenderId, Guid recipientId, CancellationToken cancellationToken = default);
 }

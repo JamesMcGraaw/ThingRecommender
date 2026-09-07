@@ -4,8 +4,7 @@ using ThingRecommender.Domain.Enums;
 namespace ThingRecommender.Application.Recommendations;
 
 public record CreateRecommendationRequest(
-    Guid RecommenderId,
-    Guid RecipientId,
+    string RecipientEmail,
     string ThingTitle,
     MediaType MediaType,
     string? Note);
@@ -15,7 +14,9 @@ public record RateRecommendationRequest([Range(1, 10)] int Score);
 public record RecommendationResponse(
     Guid Id,
     Guid RecommenderId,
+    string RecommenderName,
     Guid RecipientId,
+    string RecipientName,
     Guid ThingId,
     string ThingTitle,
     MediaType MediaType,

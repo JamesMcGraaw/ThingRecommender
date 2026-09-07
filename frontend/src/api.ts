@@ -5,7 +5,9 @@ export type MediaType = 'Film' | 'TvShow' | 'Book' | 'Comic' | 'Restaurant' | 'V
 export interface Recommendation {
   id: string
   recommenderId: string
+  recommenderName: string
   recipientId: string
+  recipientName: string
   thingId: string
   thingTitle: string
   mediaType: MediaType
@@ -17,8 +19,7 @@ export interface Recommendation {
 }
 
 export interface CreateRecommendationInput {
-  recommenderId: string
-  recipientId: string
+  recipientEmail: string
   thingTitle: string
   mediaType: MediaType
   note?: string
@@ -31,6 +32,17 @@ export interface StrengthScore {
   ratedCount: number
 }
 
+export interface User {
+  id: string
+  displayName: string
+  email: string
+}
+
+export interface SignInResult {
+  token: string
+  user: User
+}
+
 async function toJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.text()
@@ -39,27 +51,47 @@ async function toJson<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export function getRecommendations(): Promise<Recommendation[]> {
-  return fetch(`${apiBaseUrl}/api/recommendations`).then((r) => toJson<Recommendation[]>(r))
+function authHeaders(token: string): HeadersInit {
+  return { Authorization: `Bearer ${token}` }
 }
 
-export function createRecommendation(input: CreateRecommendationInput): Promise<Recommendation> {
-  return fetch(`${apiBaseUrl}/api/recommendations`, {
+export function signIn(provider: 'google' | 'microsoft', idToken: string): Promise<SignInResult> {
+  return fetch(`${apiBaseUrl}/api/auth/${provider}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+  }).then((r) => toJson<SignInResult>(r))
+}
+
+export function getMe(token: string): Promise<User> {
+  return fetch(`${apiBaseUrl}/api/auth/me`, { headers: authHeaders(token) }).then((r) => toJson<User>(r))
+}
+
+export function getRecommendations(token: string): Promise<Recommendation[]> {
+  return fetch(`${apiBaseUrl}/api/recommendations`, { headers: authHeaders(token) }).then((r) =>
+    toJson<Recommendation[]>(r),
+  )
+}
+
+export function createRecommendation(token: string, input: CreateRecommendationInput): Promise<Recommendation> {
+  return fetch(`${apiBaseUrl}/api/recommendations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify(input),
   }).then((r) => toJson<Recommendation>(r))
 }
 
-export function rateRecommendation(id: string, score: number): Promise<Recommendation> {
+export function rateRecommendation(token: string, id: string, score: number): Promise<Recommendation> {
   return fetch(`${apiBaseUrl}/api/recommendations/${id}/rate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify({ score }),
   }).then((r) => toJson<Recommendation>(r))
 }
 
-export function getStrength(recommenderId: string, recipientId: string): Promise<StrengthScore> {
+export function getStrength(token: string, recommenderId: string, recipientId: string): Promise<StrengthScore> {
   const params = new URLSearchParams({ recommenderId, recipientId })
-  return fetch(`${apiBaseUrl}/api/recommendations/strength?${params}`).then((r) => toJson<StrengthScore>(r))
+  return fetch(`${apiBaseUrl}/api/recommendations/strength?${params}`, { headers: authHeaders(token) }).then((r) =>
+    toJson<StrengthScore>(r),
+  )
 }

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ThingRecommender.Application.Abstractions;
+using ThingRecommender.Application.Common;
 using ThingRecommender.Application.ExternalLinks;
 using ThingRecommender.Domain.Entities;
 
@@ -7,8 +8,14 @@ namespace ThingRecommender.Application.Recommendations;
 
 public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup externalLinkLookup) : IRecommendationService
 {
-    public async Task<RecommendationResponse> CreateAsync(CreateRecommendationRequest request, CancellationToken cancellationToken = default)
+    public async Task<RecommendationResponse> CreateAsync(Guid recommenderId, CreateRecommendationRequest request, CancellationToken cancellationToken = default)
     {
+        var recommender = await db.Users.FirstOrDefaultAsync(u => u.Id == recommenderId, cancellationToken)
+            ?? throw new NotFoundException($"No account with id {recommenderId}.");
+
+        var recipient = await db.Users.FirstOrDefaultAsync(u => u.Email == request.RecipientEmail, cancellationToken)
+            ?? throw new NotFoundException($"No account found for {request.RecipientEmail}.");
+
         var thing = await db.Things.FirstOrDefaultAsync(
             t => t.Title == request.ThingTitle && t.MediaType == request.MediaType,
             cancellationToken);
@@ -22,8 +29,8 @@ public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup
 
         var recommendation = new Recommendation
         {
-            RecommenderId = request.RecommenderId,
-            RecipientId = request.RecipientId,
+            RecommenderId = recommender.Id,
+            RecipientId = recipient.Id,
             ThingId = thing.Id,
             Note = request.Note
         };
@@ -31,18 +38,23 @@ public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return ToResponse(recommendation, thing);
+        return ToResponse(recommendation, thing, recommender, recipient);
     }
 
-    public async Task<IReadOnlyList<RecommendationResponse>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<RecommendationResponse>> GetForUserAsync(Guid currentUserId, CancellationToken cancellationToken = default)
     {
         return await db.Recommendations
             .Include(r => r.Thing)
+            .Include(r => r.Recommender)
+            .Include(r => r.Recipient)
+            .Where(r => r.RecommenderId == currentUserId || r.RecipientId == currentUserId)
             .OrderByDescending(r => r.CreatedAtUtc)
             .Select(r => new RecommendationResponse(
                 r.Id,
                 r.RecommenderId,
+                r.Recommender!.DisplayName,
                 r.RecipientId,
+                r.Recipient!.DisplayName,
                 r.ThingId,
                 r.Thing!.Title,
                 r.Thing.MediaType,
@@ -54,15 +66,18 @@ public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<RecommendationResponse?> RateAsync(Guid recommendationId, int score, CancellationToken cancellationToken = default)
+    public async Task<RecommendationResponse> RateAsync(Guid currentUserId, Guid recommendationId, int score, CancellationToken cancellationToken = default)
     {
         var recommendation = await db.Recommendations
             .Include(r => r.Thing)
-            .FirstOrDefaultAsync(r => r.Id == recommendationId, cancellationToken);
+            .Include(r => r.Recommender)
+            .Include(r => r.Recipient)
+            .FirstOrDefaultAsync(r => r.Id == recommendationId, cancellationToken)
+            ?? throw new NotFoundException($"No recommendation with id {recommendationId}.");
 
-        if (recommendation is null)
+        if (recommendation.RecipientId != currentUserId)
         {
-            return null;
+            throw new ForbiddenException("Only the recipient of a recommendation can rate it.");
         }
 
         recommendation.Score = score;
@@ -70,11 +85,16 @@ public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return ToResponse(recommendation, recommendation.Thing!);
+        return ToResponse(recommendation, recommendation.Thing!, recommendation.Recommender!, recommendation.Recipient!);
     }
 
-    public async Task<RecommendationStrengthResponse> GetStrengthAsync(Guid recommenderId, Guid recipientId, CancellationToken cancellationToken = default)
+    public async Task<RecommendationStrengthResponse> GetStrengthAsync(Guid currentUserId, Guid recommenderId, Guid recipientId, CancellationToken cancellationToken = default)
     {
+        if (currentUserId != recommenderId && currentUserId != recipientId)
+        {
+            throw new ForbiddenException("You can only view the strength score for a pair you're part of.");
+        }
+
         var ratedScores = await db.Recommendations
             .Where(r => r.RecommenderId == recommenderId && r.RecipientId == recipientId && r.Score != null)
             .Select(r => r.Score!.Value)
@@ -87,10 +107,12 @@ public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup
             ratedScores.Count);
     }
 
-    private static RecommendationResponse ToResponse(Recommendation recommendation, Thing thing) => new(
+    private static RecommendationResponse ToResponse(Recommendation recommendation, Thing thing, User recommender, User recipient) => new(
         recommendation.Id,
         recommendation.RecommenderId,
+        recommender.DisplayName,
         recommendation.RecipientId,
+        recipient.DisplayName,
         recommendation.ThingId,
         thing.Title,
         thing.MediaType,

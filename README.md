@@ -41,17 +41,22 @@ To add a new migration after changing entities:
 dotnet tool run dotnet-ef migrations add <Name> --project backend/src/ThingRecommender.Infrastructure --startup-project backend/src/ThingRecommender.Api --output-dir Persistence/Migrations
 ```
 
-Auth is currently stubbed with test users — Google/Microsoft sign-in is planned (see `User.ExternalProvider`
-/ `User.ExternalId` on the `User` entity). Two seeded test users are always present after migrations run:
-`Alice` (`11111111-1111-1111-1111-111111111111`) and `Bob` (`22222222-2222-2222-2222-222222222222`),
-see `ThingRecommender.Domain.Seed.SeedUserIds`.
+Two seeded test users still exist after migrations run — `Alice` (`alice@example.com`) and `Bob`
+(`bob@example.com`) — but they're no longer a login shortcut; every endpoint below requires a real
+sign-in (see [Authentication](#authentication)). Signing in with an email matching a seeded user links
+your real account to it rather than creating a duplicate, so existing test data carries over once you do.
 
-- `POST /api/recommendations` — create (finds-or-creates the `Thing` by title + media type)
-- `GET /api/recommendations` — list all
-- `POST /api/recommendations/{id}/rate` — rate a recommendation (`{ "score": 1-10 }`)
+All endpoints require `Authorization: Bearer <token>` (the token from `POST /api/auth/{provider}`) unless noted:
+
+- `POST /api/recommendations` — create (`{ recipientEmail, thingTitle, mediaType, note? }`). The
+  recommender is always the authenticated user, not something the client specifies. 404s if no account
+  exists yet for `recipientEmail`. Finds-or-creates the `Thing` by title + media type.
+- `GET /api/recommendations` — recommendations where you're the recommender or the recipient
+- `POST /api/recommendations/{id}/rate` — rate a recommendation (`{ "score": 1-10 }`). 403 unless you're
+  the recipient.
 - `GET /api/recommendations/strength?recommenderId=&recipientId=` — the recommendation-strength score
   for that pair: the average of the scores the recipient has given that recommender so far (`null` /
-  count `0` if nothing's been rated yet)
+  count `0` if nothing's been rated yet). 403 unless you're one of the two people in the pair.
 
 ### External links
 
@@ -69,6 +74,47 @@ dotnet user-secrets set "Tmdb:ApiKey" "<your key>"
 
 Never put a real key in `appsettings.json` / `appsettings.Development.json` — those are committed to the repo.
 
+### Authentication
+
+Sign-in works like this: the frontend gets an ID token straight from Google/Microsoft's own SDK, POSTs it
+to `POST /api/auth/{google|microsoft}`, the backend verifies it (signature, audience, expiry) and returns
+its own JWT, which the frontend then sends as `Authorization: Bearer` on every subsequent request. No
+OAuth client secret is ever handled by this app — only the public Client ID, which both providers use with
+a PKCE/ID-token flow designed for a browser-based app.
+
+**JWT signing key** (already set for local dev in this repo's clone, but any fresh clone needs its own):
+
+```bash
+cd backend/src/ThingRecommender.Api
+dotnet user-secrets set "Jwt:SigningKey" "$(openssl rand -base64 32)"
+```
+
+**Google** — [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials):
+1. Create a project (or pick an existing one), then **Create Credentials → OAuth client ID**.
+2. If prompted, configure the OAuth consent screen first (External, add yourself as a test user is enough
+   for local dev).
+3. Application type: **Web application**. Under **Authorized JavaScript origins**, add
+   `http://localhost:5173`. No redirect URI is needed for this flow.
+4. Copy the **Client ID** (not the secret — it isn't used):
+   ```bash
+   dotnet user-secrets set "Authentication:Google:ClientId" "<client-id>"
+   ```
+   and in `frontend/.env`: `VITE_GOOGLE_CLIENT_ID=<client-id>`
+
+**Microsoft** — [entra.microsoft.com](https://entra.microsoft.com) → **App registrations → New registration**:
+1. Name it anything. Under **Supported account types**, pick "Accounts in any organizational directory
+   and personal Microsoft accounts" — this matches the `common` tenant this app uses by default.
+2. Under **Authentication → Add a platform → Single-page application**, add redirect URI
+   `http://localhost:5173`.
+3. Copy the **Application (client) ID**:
+   ```bash
+   dotnet user-secrets set "Authentication:Microsoft:ClientId" "<client-id>"
+   ```
+   and in `frontend/.env`: `VITE_MICROSOFT_CLIENT_ID=<client-id>`
+
+Either provider works independently — the sign-in page just shows "not configured" for whichever one has
+no Client ID set, rather than breaking.
+
 ## Frontend
 
 ```bash
@@ -77,4 +123,5 @@ npm install
 npm run dev
 ```
 
-Copy `.env.example` to `.env` and adjust `VITE_API_BASE_URL` if the API isn't running on the default port.
+Copy `.env.example` to `.env`, adjust `VITE_API_BASE_URL` if the API isn't running on the default port,
+and set `VITE_GOOGLE_CLIENT_ID` / `VITE_MICROSOFT_CLIENT_ID` as described above.

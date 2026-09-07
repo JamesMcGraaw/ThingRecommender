@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import './App.css'
+import { useAuth } from './auth/AuthContext'
+import { SignInButtons } from './auth/SignInButtons'
 import {
   createRecommendation,
   getRecommendations,
@@ -9,29 +11,66 @@ import {
   type Recommendation,
   type StrengthScore,
 } from './api'
-import { MEDIA_TYPES, TEST_USERS, userName } from './testUsers'
+import { MEDIA_TYPES } from './constants'
 
 function App() {
-  const [currentUserId, setCurrentUserId] = useState<string>(TEST_USERS[0].id)
-  const otherUser = TEST_USERS.find((u) => u.id !== currentUserId)!
+  const { user, token, loading, signOut } = useAuth()
 
+  if (loading) {
+    return (
+      <main>
+        <p>Loading…</p>
+      </main>
+    )
+  }
+
+  if (!user || !token) {
+    return (
+      <main>
+        <h1>ThingRecommender</h1>
+        <p>Recommend a film, show, book, or restaurant — see how well your taste lines up.</p>
+        <SignInButtons />
+      </main>
+    )
+  }
+
+  return <SignedInApp token={token} userId={user.id} userName={user.displayName} onSignOut={signOut} />
+}
+
+function SignedInApp({
+  token,
+  userId,
+  userName,
+  onSignOut,
+}: {
+  token: string
+  userId: string
+  userName: string
+  onSignOut: () => void
+}) {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-  const [strength, setStrength] = useState<StrengthScore | null>(null)
+  const [strengths, setStrengths] = useState<Record<string, StrengthScore>>({})
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const [recipientEmail, setRecipientEmail] = useState('')
   const [title, setTitle] = useState('')
   const [mediaType, setMediaType] = useState<MediaType>('Film')
   const [note, setNote] = useState('')
 
+  const received = useMemo(() => recommendations.filter((r) => r.recipientId === userId), [recommendations, userId])
+  const sent = useMemo(() => recommendations.filter((r) => r.recommenderId === userId), [recommendations, userId])
+
+  const peopleYouveRecommendedTo = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const r of sent) seen.set(r.recipientId, r.recipientName)
+    return [...seen.entries()]
+  }, [sent])
+
   async function refresh() {
     try {
-      const [recs, strengthScore] = await Promise.all([
-        getRecommendations(),
-        getStrength(currentUserId, otherUser.id),
-      ])
+      const recs = await getRecommendations(token)
       setRecommendations(recs)
-      setStrength(strengthScore)
       setLoadError(null)
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to reach the API')
@@ -41,26 +80,29 @@ function App() {
   useEffect(() => {
     refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUserId])
+  }, [])
 
-  const received = useMemo(
-    () => recommendations.filter((r) => r.recipientId === currentUserId),
-    [recommendations, currentUserId],
-  )
-  const sent = useMemo(
-    () => recommendations.filter((r) => r.recommenderId === currentUserId),
-    [recommendations, currentUserId],
-  )
+  useEffect(() => {
+    Promise.all(
+      peopleYouveRecommendedTo.map(([recipientId]) =>
+        getStrength(token, userId, recipientId).then((s) => [recipientId, s] as const),
+      ),
+    )
+      .then((entries) => setStrengths(Object.fromEntries(entries)))
+      .catch(() => {
+        /* strength scores are supplementary - a failure here shouldn't block the rest of the page */
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peopleYouveRecommendedTo.map(([id]) => id).join(',')])
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault()
-    if (!title.trim()) return
+    if (!title.trim() || !recipientEmail.trim()) return
 
     setIsSubmitting(true)
     try {
-      await createRecommendation({
-        recommenderId: currentUserId,
-        recipientId: otherUser.id,
+      await createRecommendation(token, {
+        recipientEmail: recipientEmail.trim(),
         thingTitle: title.trim(),
         mediaType,
         note: note.trim() || undefined,
@@ -77,7 +119,7 @@ function App() {
 
   async function handleRate(id: string, score: number) {
     try {
-      await rateRecommendation(id, score)
+      await rateRecommendation(token, id, score)
       await refresh()
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to submit rating')
@@ -88,35 +130,45 @@ function App() {
     <main>
       <header>
         <h1>ThingRecommender</h1>
-        <label>
-          Signed in as{' '}
-          <select value={currentUserId} onChange={(e) => setCurrentUserId(e.target.value)}>
-            {TEST_USERS.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
+        <span>
+          Signed in as {userName} <button type="button" onClick={onSignOut}>Sign out</button>
+        </span>
       </header>
 
       {loadError && <p className="error">{loadError}</p>}
 
-      <section>
-        <h2>How much {otherUser.displayName} trusts your taste</h2>
-        {strength && strength.ratedCount > 0 ? (
-          <p>
-            Average score: <strong>{strength.averageScore?.toFixed(1)}</strong> / 10 (
-            {strength.ratedCount} rated)
-          </p>
-        ) : (
-          <p>No ratings yet.</p>
-        )}
-      </section>
+      {peopleYouveRecommendedTo.length > 0 && (
+        <section>
+          <h2>How much people trust your taste</h2>
+          <ul>
+            {peopleYouveRecommendedTo.map(([recipientId, name]) => {
+              const strength = strengths[recipientId]
+              return (
+                <li key={recipientId}>
+                  {name}:{' '}
+                  {strength && strength.ratedCount > 0
+                    ? `${strength.averageScore?.toFixed(1)} / 10 (${strength.ratedCount} rated)`
+                    : 'no ratings yet'}
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
 
       <section>
-        <h2>Recommend something to {otherUser.displayName}</h2>
+        <h2>Recommend something</h2>
         <form onSubmit={handleCreate}>
+          <label>
+            Recipient's email
+            <input
+              type="email"
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              placeholder="friend@example.com"
+              required
+            />
+          </label>
           <label>
             Title
             <input value={title} onChange={(e) => setTitle(e.target.value)} required />
@@ -153,7 +205,7 @@ function App() {
             <li key={r.id}>
               <ThingTitle recommendation={r} />
               <br />
-              from {userName(r.recommenderId)}
+              from {r.recommenderName}
               {r.note && <em> — "{r.note}"</em>}
               <div className="rating">
                 {r.score === null ? (
@@ -175,8 +227,7 @@ function App() {
             <li key={r.id}>
               <ThingTitle recommendation={r} />
               <br />
-              to {userName(r.recipientId)} —{' '}
-              {r.score === null ? 'not rated yet' : `rated ${r.score}/10`}
+              to {r.recipientName} — {r.score === null ? 'not rated yet' : `rated ${r.score}/10`}
             </li>
           ))}
         </ul>
