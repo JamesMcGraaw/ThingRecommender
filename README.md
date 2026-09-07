@@ -28,8 +28,27 @@ Run tests:
 dotnet test ThingRecommender.slnx
 ```
 
+Migrations use a pinned local `dotnet-ef` tool (see `.config/dotnet-tools.json`):
+
+```bash
+dotnet tool restore
+dotnet tool run dotnet-ef database update --project backend/src/ThingRecommender.Infrastructure --startup-project backend/src/ThingRecommender.Api
+```
+
+To add a new migration after changing entities:
+
+```bash
+dotnet tool run dotnet-ef migrations add <Name> --project backend/src/ThingRecommender.Infrastructure --startup-project backend/src/ThingRecommender.Api --output-dir Persistence/Migrations
+```
+
 Auth is currently stubbed with test users — Google/Microsoft sign-in is planned (see `User.ExternalProvider`
-/ `User.ExternalId` on the `User` entity).
+/ `User.ExternalId` on the `User` entity). Two seeded test users are always present after migrations run:
+`Alice` (`11111111-1111-1111-1111-111111111111`) and `Bob` (`22222222-2222-2222-2222-222222222222`),
+see `ThingRecommender.Domain.Seed.SeedUserIds`.
+
+`POST /api/recommendations` creates a recommendation (finding-or-creating the `Thing` by title + media
+type); `GET /api/recommendations` lists them. Rating and the recommendation-strength score aren't
+implemented yet.
 
 ## Frontend
 
