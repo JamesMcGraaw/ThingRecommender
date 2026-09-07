@@ -13,8 +13,9 @@ The frontend talks to the backend only through the API, so other clients (mobile
 
 ## Backend
 
-Requires [PostgreSQL](https://www.postgresql.org/) running locally (or update the `Database` connection
-string in `backend/src/ThingRecommender.Api/appsettings.Development.json`).
+Uses SQLite — no separate database server needed. The database file (`thingrecommender.db`) is created
+automatically based on the `Database` connection string in
+`backend/src/ThingRecommender.Api/appsettings.Development.json`.
 
 ```bash
 cd backend/src/ThingRecommender.Api
