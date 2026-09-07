@@ -6,7 +6,7 @@ export const TEST_USERS = [
   { id: '22222222-2222-2222-2222-222222222222', displayName: 'Bob' },
 ] as const
 
-export const MEDIA_TYPES: MediaType[] = ['Film', 'TvShow', 'Book', 'Comic', 'Restaurant']
+export const MEDIA_TYPES: MediaType[] = ['Film', 'TvShow', 'Book', 'Comic', 'Restaurant', 'VideoGame']
 
 export function userName(id: string): string {
   return TEST_USERS.find((u) => u.id === id)?.displayName ?? id

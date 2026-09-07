@@ -1,6 +1,6 @@
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5119'
 
-export type MediaType = 'Film' | 'TvShow' | 'Book' | 'Comic' | 'Restaurant'
+export type MediaType = 'Film' | 'TvShow' | 'Book' | 'Comic' | 'Restaurant' | 'VideoGame'
 
 export interface Recommendation {
   id: string

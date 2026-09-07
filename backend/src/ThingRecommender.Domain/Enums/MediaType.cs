@@ -6,5 +6,6 @@ public enum MediaType
     TvShow,
     Book,
     Comic,
-    Restaurant
+    Restaurant,
+    VideoGame
 }
