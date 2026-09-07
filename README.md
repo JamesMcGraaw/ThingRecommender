@@ -46,9 +46,12 @@ Auth is currently stubbed with test users — Google/Microsoft sign-in is planne
 `Alice` (`11111111-1111-1111-1111-111111111111`) and `Bob` (`22222222-2222-2222-2222-222222222222`),
 see `ThingRecommender.Domain.Seed.SeedUserIds`.
 
-`POST /api/recommendations` creates a recommendation (finding-or-creating the `Thing` by title + media
-type); `GET /api/recommendations` lists them. Rating and the recommendation-strength score aren't
-implemented yet.
+- `POST /api/recommendations` — create (finds-or-creates the `Thing` by title + media type)
+- `GET /api/recommendations` — list all
+- `POST /api/recommendations/{id}/rate` — rate a recommendation (`{ "score": 1-10 }`)
+- `GET /api/recommendations/strength?recommenderId=&recipientId=` — the recommendation-strength score
+  for that pair: the average of the scores the recipient has given that recommender so far (`null` /
+  count `0` if nothing's been rated yet)
 
 ## Frontend
 

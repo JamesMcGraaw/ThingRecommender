@@ -51,6 +51,39 @@ public class RecommendationService(IApplicationDbContext db) : IRecommendationSe
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<RecommendationResponse?> RateAsync(Guid recommendationId, int score, CancellationToken cancellationToken = default)
+    {
+        var recommendation = await db.Recommendations
+            .Include(r => r.Thing)
+            .FirstOrDefaultAsync(r => r.Id == recommendationId, cancellationToken);
+
+        if (recommendation is null)
+        {
+            return null;
+        }
+
+        recommendation.Score = score;
+        recommendation.RatedAtUtc = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return ToResponse(recommendation, recommendation.Thing!);
+    }
+
+    public async Task<RecommendationStrengthResponse> GetStrengthAsync(Guid recommenderId, Guid recipientId, CancellationToken cancellationToken = default)
+    {
+        var ratedScores = await db.Recommendations
+            .Where(r => r.RecommenderId == recommenderId && r.RecipientId == recipientId && r.Score != null)
+            .Select(r => r.Score!.Value)
+            .ToListAsync(cancellationToken);
+
+        return new RecommendationStrengthResponse(
+            recommenderId,
+            recipientId,
+            ratedScores.Count > 0 ? ratedScores.Average() : null,
+            ratedScores.Count);
+    }
+
     private static RecommendationResponse ToResponse(Recommendation recommendation, Thing thing) => new(
         recommendation.Id,
         recommendation.RecommenderId,
