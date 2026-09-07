@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ThingRecommender.Application.Abstractions;
+using ThingRecommender.Application.ExternalLinks;
+using ThingRecommender.Infrastructure.ExternalLinks;
 using ThingRecommender.Infrastructure.Persistence;
 
 namespace ThingRecommender.Infrastructure;
@@ -15,6 +17,12 @@ public static class DependencyInjection
 
         services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
+
+        services.Configure<TmdbOptions>(configuration.GetSection(TmdbOptions.SectionName));
+        services.AddHttpClient<IExternalLinkLookup, TmdbExternalLinkLookup>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
+        });
 
         return services;
     }

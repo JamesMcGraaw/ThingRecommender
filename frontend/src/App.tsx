@@ -151,7 +151,7 @@ function App() {
         <ul className="recommendation-list">
           {received.map((r) => (
             <li key={r.id}>
-              <span className="thing-title">{r.thingTitle}</span> <span className="media-type">({r.mediaType})</span>
+              <ThingTitle recommendation={r} />
               <br />
               from {userName(r.recommenderId)}
               {r.note && <em> — "{r.note}"</em>}
@@ -173,7 +173,7 @@ function App() {
         <ul className="recommendation-list">
           {sent.map((r) => (
             <li key={r.id}>
-              <span className="thing-title">{r.thingTitle}</span> <span className="media-type">({r.mediaType})</span>
+              <ThingTitle recommendation={r} />
               <br />
               to {userName(r.recipientId)} —{' '}
               {r.score === null ? 'not rated yet' : `rated ${r.score}/10`}
@@ -182,6 +182,23 @@ function App() {
         </ul>
       </section>
     </main>
+  )
+}
+
+function ThingTitle({ recommendation }: { recommendation: Recommendation }) {
+  return (
+    <>
+      <span className="thing-title">{recommendation.thingTitle}</span>{' '}
+      <span className="media-type">({recommendation.mediaType})</span>
+      {recommendation.externalUrl && (
+        <>
+          {' '}
+          <a href={recommendation.externalUrl} target="_blank" rel="noreferrer">
+            more info
+          </a>
+        </>
+      )}
+    </>
   )
 }
 

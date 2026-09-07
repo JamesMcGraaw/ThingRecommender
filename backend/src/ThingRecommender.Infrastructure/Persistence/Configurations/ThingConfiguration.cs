@@ -10,5 +10,6 @@ public class ThingConfiguration : IEntityTypeConfiguration<Thing>
     {
         builder.Property(t => t.Title).HasMaxLength(300).IsRequired();
         builder.Property(t => t.MediaType).HasConversion<string>().HasMaxLength(20);
+        builder.Property(t => t.ExternalUrl).HasMaxLength(500);
     }
 }

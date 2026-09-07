@@ -53,6 +53,22 @@ see `ThingRecommender.Domain.Seed.SeedUserIds`.
   for that pair: the average of the scores the recipient has given that recommender so far (`null` /
   count `0` if nothing's been rated yet)
 
+### External links
+
+Newly-created Films and TV shows get looked up on [TMDB](https://www.themoviedb.org/) for an external
+link (`Thing.ExternalUrl`), keyed off `MediaType` so other providers (IGDB for `VideoGame`, Google Books
+for `Book`/`Comic`, etc.) can be added the same way later. It's optional — with no API key configured the
+lookup just returns `null` and recommendation creation still succeeds.
+
+To enable it locally: [get a free TMDB API key](https://www.themoviedb.org/settings/api) (v3 auth), then:
+
+```bash
+cd backend/src/ThingRecommender.Api
+dotnet user-secrets set "Tmdb:ApiKey" "<your key>"
+```
+
+Never put a real key in `appsettings.json` / `appsettings.Development.json` — those are committed to the repo.
+
 ## Frontend
 
 ```bash

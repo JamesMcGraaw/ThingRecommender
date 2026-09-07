@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using ThingRecommender.Application.Abstractions;
+using ThingRecommender.Application.ExternalLinks;
 using ThingRecommender.Domain.Entities;
 
 namespace ThingRecommender.Application.Recommendations;
 
-public class RecommendationService(IApplicationDbContext db) : IRecommendationService
+public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup externalLinkLookup) : IRecommendationService
 {
     public async Task<RecommendationResponse> CreateAsync(CreateRecommendationRequest request, CancellationToken cancellationToken = default)
     {
@@ -14,7 +15,8 @@ public class RecommendationService(IApplicationDbContext db) : IRecommendationSe
 
         if (thing is null)
         {
-            thing = new Thing { Title = request.ThingTitle, MediaType = request.MediaType };
+            var externalUrl = await externalLinkLookup.TryFindUrlAsync(request.ThingTitle, request.MediaType, cancellationToken);
+            thing = new Thing { Title = request.ThingTitle, MediaType = request.MediaType, ExternalUrl = externalUrl };
             db.Things.Add(thing);
         }
 
@@ -44,6 +46,7 @@ public class RecommendationService(IApplicationDbContext db) : IRecommendationSe
                 r.ThingId,
                 r.Thing!.Title,
                 r.Thing.MediaType,
+                r.Thing.ExternalUrl,
                 r.Note,
                 r.CreatedAtUtc,
                 r.Score,
@@ -91,6 +94,7 @@ public class RecommendationService(IApplicationDbContext db) : IRecommendationSe
         recommendation.ThingId,
         thing.Title,
         thing.MediaType,
+        thing.ExternalUrl,
         recommendation.Note,
         recommendation.CreatedAtUtc,
         recommendation.Score,

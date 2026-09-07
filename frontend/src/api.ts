@@ -9,6 +9,7 @@ export interface Recommendation {
   thingId: string
   thingTitle: string
   mediaType: MediaType
+  externalUrl: string | null
   note: string | null
   createdAtUtc: string
   score: number | null

@@ -19,6 +19,7 @@ public record RecommendationResponse(
     Guid ThingId,
     string ThingTitle,
     MediaType MediaType,
+    string? ExternalUrl,
     string? Note,
     DateTime CreatedAtUtc,
     int? Score,
