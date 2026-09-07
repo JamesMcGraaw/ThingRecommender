@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/backend/" />
+  <Folder Name="/backend/src/">
+    <Project Path="backend/src/ThingRecommender.Api/ThingRecommender.Api.csproj" />
+    <Project Path="backend/src/ThingRecommender.Application/ThingRecommender.Application.csproj" />
+    <Project Path="backend/src/ThingRecommender.Domain/ThingRecommender.Domain.csproj" />
+    <Project Path="backend/src/ThingRecommender.Infrastructure/ThingRecommender.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/backend/tests/">
+    <Project Path="backend/tests/ThingRecommender.Application.UnitTests/ThingRecommender.Application.UnitTests.csproj" />
+    <Project Path="backend/tests/ThingRecommender.Domain.UnitTests/ThingRecommender.Domain.UnitTests.csproj" />
+  </Folder>
+</Solution>
