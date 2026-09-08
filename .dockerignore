@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/node_modules/
+frontend/
+backend/tests/
+.git/
+.vs/
+.vscode/
+*.db
+*.db-shm
+*.db-wal
