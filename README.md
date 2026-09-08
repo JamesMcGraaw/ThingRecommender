@@ -13,9 +13,17 @@ The frontend talks to the backend only through the API, so other clients (mobile
 
 ## Backend
 
-Uses SQLite — no separate database server needed. The database file (`thingrecommender.db`) is created
-automatically based on the `Database` connection string in
-`backend/src/ThingRecommender.Api/appsettings.Development.json`.
+Uses PostgreSQL — [Neon](https://neon.tech) has a free tier and takes about a minute to set up (sign in
+with Google/GitHub, create a project, copy the connection string). Set it via user-secrets rather than
+`appsettings.json`, since it contains a real credential:
+
+```bash
+cd backend/src/ThingRecommender.Api
+dotnet user-secrets set "ConnectionStrings:Database" "Host=<host>;Port=5432;Database=<db>;Username=<user>;Password=<password>;SSL Mode=Require;Channel Binding=Require"
+```
+
+(Neon gives you a `postgresql://user:password@host/db?sslmode=require&channel_binding=require` URI —
+convert it to the `Host=...;Username=...` form above; Npgsql doesn't parse the URI form directly.)
 
 ```bash
 cd backend/src/ThingRecommender.Api

@@ -4,11 +4,6 @@ obj/
 *.user
 *.suo
 
-# SQLite
-*.db
-*.db-shm
-*.db-wal
-
 # EF Core
 **/Migrations/*.Designer.cs.bak
 
