@@ -133,3 +133,22 @@ npm run dev
 
 Copy `.env.example` to `.env`, adjust `VITE_API_BASE_URL` if the API isn't running on the default port,
 and set `VITE_GOOGLE_CLIENT_ID` / `VITE_MICROSOFT_CLIENT_ID` as described above.
+
+## Deployment
+
+**Backend** is deployed on [Render](https://render.com) as a Docker web service, built from the repo-root
+`Dockerfile` (multi-stage: publish on the .NET SDK image, run on the smaller ASP.NET runtime image,
+listens on `8080`). Live at `https://thingrecommender.onrender.com`.
+
+Config is set as environment variables in the Render dashboard (Environment tab), using the same
+double-underscore convention .NET config binding expects for nested keys (e.g.
+`ConnectionStrings__Database`, `Jwt__SigningKey`, `Authentication__Google__ClientId`) — see
+[Authentication](#authentication) and the connection string note above for what each value should be.
+Also set `ASPNETCORE_ENVIRONMENT=Production`. The free instance spins down after inactivity (~50s cold
+start on the next request) and needs a card on file for verification, even though it isn't charged.
+
+Once the frontend has a deployed URL, add it as `Cors__AllowedOrigins__0` in Render's environment
+variables, and as an **Authorized JavaScript origin** on the Google OAuth client (see
+[Authentication](#authentication)) — not yet done as of the initial backend deploy.
+
+**Frontend** isn't deployed yet.
