@@ -147,8 +147,19 @@ double-underscore convention .NET config binding expects for nested keys (e.g.
 Also set `ASPNETCORE_ENVIRONMENT=Production`. The free instance spins down after inactivity (~50s cold
 start on the next request) and needs a card on file for verification, even though it isn't charged.
 
-Once the frontend has a deployed URL, add it as `Cors__AllowedOrigins__0` in Render's environment
-variables, and as an **Authorized JavaScript origin** on the Google OAuth client (see
-[Authentication](#authentication)) — not yet done as of the initial backend deploy.
+**Frontend** is deployed on [GitHub Pages](https://pages.github.com) via the
+`.github/workflows/deploy-frontend.yml` GitHub Actions workflow, which runs on every push to `master`
+that touches `frontend/`. Live at `https://jamesmcgraaw.github.io/ThingRecommender/`.
 
-**Frontend** isn't deployed yet.
+GitHub Pages requires the repo to be public on the free plan (this repo was made public for that reason —
+its history was checked first for anything that shouldn't be, and it was clean). Build-time config comes
+from repository variables (Settings → Secrets and variables → Actions → Variables) rather than secrets,
+since `VITE_`-prefixed values end up in the public client bundle either way: `VITE_API_BASE_URL`,
+`VITE_GOOGLE_CLIENT_ID`, and optionally `VITE_MICROSOFT_CLIENT_ID` / `VITE_MICROSOFT_TENANT_ID`.
+
+`vite.config.ts` sets `base: '/ThingRecommender/'` for production builds only (GitHub Pages project sites
+are served under `/<repo>/`) — local dev still runs at the root.
+
+Whenever the frontend's deployed origin changes, it needs to be added in two places: `Cors__AllowedOrigins__0`
+in Render's environment variables, and as an **Authorized JavaScript origin** on the Google OAuth client
+(see [Authentication](#authentication)) — both already done for the current GitHub Pages URL.
