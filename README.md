@@ -116,6 +116,11 @@ dotnet user-secrets set "Jwt:SigningKey" "$(openssl rand -base64 32)"
    dotnet user-secrets set "Authentication:Google:ClientId" "<client-id>"
    ```
    and in `frontend/.env`: `VITE_GOOGLE_CLIENT_ID=<client-id>`
+5. To let anyone sign in (not just test users you've added by hand), publish the consent screen: **Audience
+   → Publish app**. This requires an app homepage URL and a privacy policy URL under **Branding** first
+   (this repo already has both — see `frontend/public/privacy.html`). Publishing didn't need Google's
+   verification review here since the app only requests basic profile/email scopes, has one authorized
+   domain, and no logo.
 
 **Microsoft** — [entra.microsoft.com](https://entra.microsoft.com) → **App registrations → New registration**:
 1. Name it anything. Under **Supported account types**, pick "Accounts in any organizational directory
