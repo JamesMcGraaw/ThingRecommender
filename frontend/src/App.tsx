@@ -9,6 +9,7 @@ import {
   logManualRecommendation,
   rateRecommendation,
   type MediaType,
+  type MediaTypeStrength,
   type Recommendation,
   type StrengthScore,
 } from './api'
@@ -75,18 +76,34 @@ function SignedInApp({
   }, [sent])
 
   const peopleYouTrust = useMemo(() => {
-    const byRecommender = new Map<string, { name: string; scores: number[] }>()
+    const byRecommender = new Map<string, { name: string; scores: number[]; scoresByType: Map<MediaType, number[]> }>()
     for (const r of received) {
       const key = r.recommenderId ?? `external:${r.recommenderName}`
-      const entry = byRecommender.get(key) ?? { name: r.recommenderName, scores: [] }
-      if (r.score !== null) entry.scores.push(r.score)
+      const entry = byRecommender.get(key) ?? {
+        name: r.recommenderName,
+        scores: [],
+        scoresByType: new Map<MediaType, number[]>(),
+      }
+      if (r.score !== null) {
+        entry.scores.push(r.score)
+        const typeScores = entry.scoresByType.get(r.mediaType) ?? []
+        typeScores.push(r.score)
+        entry.scoresByType.set(r.mediaType, typeScores)
+      }
       byRecommender.set(key, entry)
     }
-    return [...byRecommender.entries()].map(([key, { name, scores }]) => ({
+    return [...byRecommender.entries()].map(([key, { name, scores, scoresByType }]) => ({
       key,
       name,
       averageScore: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null,
       ratedCount: scores.length,
+      byMediaType: [...scoresByType.entries()]
+        .map(([mediaType, typeScores]) => ({
+          mediaType,
+          averageScore: typeScores.reduce((a, b) => a + b, 0) / typeScores.length,
+          ratedCount: typeScores.length,
+        }))
+        .sort((a, b) => a.mediaType.localeCompare(b.mediaType)),
     }))
   }, [received])
 
@@ -195,6 +212,7 @@ function SignedInApp({
                   {strength && strength.ratedCount > 0
                     ? `${strength.averageScore?.toFixed(1)} / 10 (${strength.ratedCount} rated)`
                     : 'no ratings yet'}
+                  {strength && <MediaTypeBreakdown entries={strength.byMediaType} />}
                 </li>
               )
             })}
@@ -206,9 +224,10 @@ function SignedInApp({
         <section>
           <h2>How much you trust people's recommendations</h2>
           <ul>
-            {peopleYouTrust.map(({ key, name, averageScore, ratedCount }) => (
+            {peopleYouTrust.map(({ key, name, averageScore, ratedCount, byMediaType }) => (
               <li key={key}>
                 {name}: {ratedCount > 0 ? `${averageScore?.toFixed(1)} / 10 (${ratedCount} rated)` : 'no ratings yet'}
+                <MediaTypeBreakdown entries={byMediaType} />
               </li>
             ))}
           </ul>
@@ -333,6 +352,21 @@ function SignedInApp({
         </ul>
       </section>
     </main>
+  )
+}
+
+function MediaTypeBreakdown({ entries }: { entries: MediaTypeStrength[] }) {
+  const rated = entries.filter((e) => e.ratedCount > 0)
+  if (rated.length === 0) return null
+
+  return (
+    <ul className="media-type-breakdown">
+      {rated.map((e) => (
+        <li key={e.mediaType}>
+          {e.mediaType}: {e.averageScore?.toFixed(1)} / 10 ({e.ratedCount} rated)
+        </li>
+      ))}
+    </ul>
   )
 }
 

@@ -53,6 +53,14 @@ form label {
   font-weight: 600;
 }
 
+.media-type-breakdown {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0 0 0 1rem;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
 .media-type {
   color: #666;
   font-size: 0.85rem;

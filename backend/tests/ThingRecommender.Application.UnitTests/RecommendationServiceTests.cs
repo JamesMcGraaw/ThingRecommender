@@ -177,6 +177,42 @@ public class RecommendationServiceTests
 
         Assert.Equal(7, strength.AverageScore);
         Assert.Equal(2, strength.RatedCount);
+        var filmBreakdown = Assert.Single(strength.ByMediaType);
+        Assert.Equal(MediaType.Film, filmBreakdown.MediaType);
+        Assert.Equal(7, filmBreakdown.AverageScore);
+        Assert.Equal(2, filmBreakdown.RatedCount);
+    }
+
+    [Fact]
+    public async Task GetStrengthAsync_BreaksDownByMediaType()
+    {
+        var (db, alice, bob) = await SeedUsersAsync();
+        using var _ = db;
+        var film = new Thing { Title = "Dune", MediaType = MediaType.Film };
+        var book = new Thing { Title = "Dune", MediaType = MediaType.Book };
+        db.Things.AddRange(film, book);
+
+        db.Recommendations.AddRange(
+            new Recommendation { RecommenderId = alice.Id, RecipientId = bob.Id, ThingId = film.Id, Score = 9 },
+            new Recommendation { RecommenderId = alice.Id, RecipientId = bob.Id, ThingId = film.Id, Score = 7 },
+            new Recommendation { RecommenderId = alice.Id, RecipientId = bob.Id, ThingId = book.Id, Score = 2 },
+            new Recommendation { RecommenderId = alice.Id, RecipientId = bob.Id, ThingId = book.Id, Score = null }); // unrated book, shouldn't count
+        await db.SaveChangesAsync();
+
+        var service = new RecommendationService(db, new NullExternalLinkLookup());
+        var strength = await service.GetStrengthAsync(alice.Id, alice.Id, bob.Id);
+
+        Assert.Equal(6, strength.AverageScore); // (9 + 7 + 2) / 3
+        Assert.Equal(3, strength.RatedCount);
+        Assert.Equal(2, strength.ByMediaType.Count);
+
+        var filmScore = strength.ByMediaType.Single(m => m.MediaType == MediaType.Film);
+        Assert.Equal(8, filmScore.AverageScore); // (9 + 7) / 2
+        Assert.Equal(2, filmScore.RatedCount);
+
+        var bookScore = strength.ByMediaType.Single(m => m.MediaType == MediaType.Book);
+        Assert.Equal(2, bookScore.AverageScore);
+        Assert.Equal(1, bookScore.RatedCount);
     }
 
     [Fact]

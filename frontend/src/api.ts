@@ -32,11 +32,18 @@ export interface LogManualRecommendationInput {
   note?: string
 }
 
+export interface MediaTypeStrength {
+  mediaType: MediaType
+  averageScore: number | null
+  ratedCount: number
+}
+
 export interface StrengthScore {
   recommenderId: string
   recipientId: string
   averageScore: number | null
   ratedCount: number
+  byMediaType: MediaTypeStrength[]
 }
 
 export interface User {

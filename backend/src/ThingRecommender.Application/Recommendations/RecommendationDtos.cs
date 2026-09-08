@@ -34,12 +34,17 @@ public record RecommendationResponse(
     int? Score,
     DateTime? RatedAtUtc);
 
+public record MediaTypeStrength(MediaType MediaType, double? AverageScore, int RatedCount);
+
 /// <summary>
 /// How well Recommender's "you'll love it" recommendations land with Recipient,
 /// derived from the ratings Recipient has given so far — not stored, computed on demand.
+/// ByMediaType only lists types with at least one rating - someone can have great taste in
+/// films and mediocre taste in books, so the overall figure alone would hide that.
 /// </summary>
 public record RecommendationStrengthResponse(
     Guid RecommenderId,
     Guid RecipientId,
     double? AverageScore,
-    int RatedCount);
+    int RatedCount,
+    IReadOnlyList<MediaTypeStrength> ByMediaType);

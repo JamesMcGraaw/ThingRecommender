@@ -108,16 +108,23 @@ public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup
             throw new ForbiddenException("You can only view the strength score for a pair you're part of.");
         }
 
-        var ratedScores = await db.Recommendations
+        var rated = await db.Recommendations
             .Where(r => r.RecommenderId == recommenderId && r.RecipientId == recipientId && r.Score != null)
-            .Select(r => r.Score!.Value)
+            .Select(r => new { Score = r.Score!.Value, r.Thing!.MediaType })
             .ToListAsync(cancellationToken);
+
+        var byMediaType = rated
+            .GroupBy(r => r.MediaType)
+            .Select(g => new MediaTypeStrength(g.Key, g.Average(r => (double)r.Score), g.Count()))
+            .OrderBy(m => m.MediaType)
+            .ToList();
 
         return new RecommendationStrengthResponse(
             recommenderId,
             recipientId,
-            ratedScores.Count > 0 ? ratedScores.Average() : null,
-            ratedScores.Count);
+            rated.Count > 0 ? rated.Average(r => (double)r.Score) : null,
+            rated.Count,
+            byMediaType);
     }
 
     private async Task<Thing> FindOrCreateThingAsync(string title, MediaType mediaType, CancellationToken cancellationToken)
