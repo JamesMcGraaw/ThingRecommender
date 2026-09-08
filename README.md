@@ -59,6 +59,12 @@ All endpoints require `Authorization: Bearer <token>` (the token from `POST /api
 - `POST /api/recommendations` — create (`{ recipientEmail, thingTitle, mediaType, note? }`). The
   recommender is always the authenticated user, not something the client specifies. 404s if no account
   exists yet for `recipientEmail`. Finds-or-creates the `Thing` by title + media type.
+- `POST /api/recommendations/manual` — log a recommendation from someone who isn't a ThingRecommender
+  user (`{ externalRecommenderName, thingTitle, mediaType, note? }`). The recipient is always the
+  authenticated user; `Recommendation.RecommenderId` is left null and `ExternalRecommenderName` holds the
+  free-text name instead. There's no persistent identity behind that name (no account, no email), so it
+  can't feed the `/strength` endpoint below — the frontend instead computes a rough per-name average
+  client-side from the recommendations already in hand.
 - `GET /api/recommendations` — recommendations where you're the recommender or the recipient
 - `POST /api/recommendations/{id}/rate` — rate a recommendation (`{ "score": 1-10 }`). 403 unless you're
   the recipient.

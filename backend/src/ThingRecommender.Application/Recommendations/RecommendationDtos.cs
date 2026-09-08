@@ -9,11 +9,19 @@ public record CreateRecommendationRequest(
     MediaType MediaType,
     string? Note);
 
+/// <summary>Logging a recommendation from someone who isn't a ThingRecommender user -
+/// the current (authenticated) user is always the recipient.</summary>
+public record LogManualRecommendationRequest(
+    [Required, MinLength(1)] string ExternalRecommenderName,
+    string ThingTitle,
+    MediaType MediaType,
+    string? Note);
+
 public record RateRecommendationRequest([Range(1, 10)] int Score);
 
 public record RecommendationResponse(
     Guid Id,
-    Guid RecommenderId,
+    Guid? RecommenderId,
     string RecommenderName,
     Guid RecipientId,
     string RecipientName,

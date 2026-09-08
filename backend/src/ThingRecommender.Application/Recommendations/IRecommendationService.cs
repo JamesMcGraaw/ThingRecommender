@@ -5,6 +5,9 @@ public interface IRecommendationService
     /// <summary>Throws NotFoundException if no account exists for the recipient's email yet.</summary>
     Task<RecommendationResponse> CreateAsync(Guid recommenderId, CreateRecommendationRequest request, CancellationToken cancellationToken = default);
 
+    /// <summary>Logs a recommendation from someone outside the app; recipientId is always the current user.</summary>
+    Task<RecommendationResponse> LogManualAsync(Guid recipientId, LogManualRecommendationRequest request, CancellationToken cancellationToken = default);
+
     /// <summary>Recommendations where currentUserId is the recommender or the recipient.</summary>
     Task<IReadOnlyList<RecommendationResponse>> GetForUserAsync(Guid currentUserId, CancellationToken cancellationToken = default);
 

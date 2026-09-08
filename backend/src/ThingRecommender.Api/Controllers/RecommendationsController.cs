@@ -25,6 +25,15 @@ public class RecommendationsController(IRecommendationService recommendationServ
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
+    [HttpPost("manual")]
+    public async Task<ActionResult<RecommendationResponse>> LogManual(
+        LogManualRecommendationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await recommendationService.LogManualAsync(User.GetUserId(), request, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
+
     [HttpPost("{id:guid}/rate")]
     public async Task<ActionResult<RecommendationResponse>> Rate(
         Guid id,

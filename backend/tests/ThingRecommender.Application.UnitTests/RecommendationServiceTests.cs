@@ -60,6 +60,36 @@ public class RecommendationServiceTests
     }
 
     [Fact]
+    public async Task LogManualAsync_SetsExternalRecommenderNameAndNoRecommenderId()
+    {
+        var (db, _, recipient) = await SeedUsersAsync();
+        using var _ = db;
+        var service = new RecommendationService(db, new NullExternalLinkLookup());
+
+        var result = await service.LogManualAsync(recipient.Id, new LogManualRecommendationRequest(
+            "Nathan", "Dune", MediaType.Film, "he wouldn't stop talking about it"));
+
+        Assert.Null(result.RecommenderId);
+        Assert.Equal("Nathan", result.RecommenderName);
+        Assert.Equal(recipient.Id, result.RecipientId);
+    }
+
+    [Fact]
+    public async Task LogManualAsync_ThenRate_RecipientCanRateItLikeAnyOther()
+    {
+        var (db, _, recipient) = await SeedUsersAsync();
+        using var _ = db;
+        var service = new RecommendationService(db, new NullExternalLinkLookup());
+
+        var logged = await service.LogManualAsync(recipient.Id, new LogManualRecommendationRequest(
+            "Nathan", "Dune", MediaType.Film, null));
+        var rated = await service.RateAsync(recipient.Id, logged.Id, 9);
+
+        Assert.Equal(9, rated.Score);
+        Assert.Equal("Nathan", rated.RecommenderName);
+    }
+
+    [Fact]
     public async Task RateAsync_SetsScoreAndRatedAtUtc()
     {
         var (db, recommender, recipient) = await SeedUsersAsync();
@@ -107,6 +137,22 @@ public class RecommendationServiceTests
 
         // recommender tries to rate their own recommendation - only the recipient may.
         await Assert.ThrowsAsync<ForbiddenException>(() => service.RateAsync(recommender.Id, recommendation.Id, 8));
+    }
+
+    [Fact]
+    public async Task GetForUserAsync_IncludesManualEntriesWithExternalName()
+    {
+        var (db, _, recipient) = await SeedUsersAsync();
+        using var _ = db;
+        var service = new RecommendationService(db, new NullExternalLinkLookup());
+        await service.LogManualAsync(recipient.Id, new LogManualRecommendationRequest(
+            "Nathan", "Dune", MediaType.Film, null));
+
+        var results = await service.GetForUserAsync(recipient.Id);
+
+        var entry = Assert.Single(results);
+        Assert.Null(entry.RecommenderId);
+        Assert.Equal("Nathan", entry.RecommenderName);
     }
 
     [Fact]

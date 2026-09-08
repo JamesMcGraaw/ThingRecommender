@@ -6,6 +6,7 @@ import {
   createRecommendation,
   getRecommendations,
   getStrength,
+  logManualRecommendation,
   rateRecommendation,
   type MediaType,
   type Recommendation,
@@ -58,6 +59,12 @@ function SignedInApp({
   const [mediaType, setMediaType] = useState<MediaType>('Film')
   const [note, setNote] = useState('')
 
+  const [manualRecommenderName, setManualRecommenderName] = useState('')
+  const [manualTitle, setManualTitle] = useState('')
+  const [manualMediaType, setManualMediaType] = useState<MediaType>('Film')
+  const [manualNote, setManualNote] = useState('')
+  const [isSubmittingManual, setIsSubmittingManual] = useState(false)
+
   const received = useMemo(() => recommendations.filter((r) => r.recipientId === userId), [recommendations, userId])
   const sent = useMemo(() => recommendations.filter((r) => r.recommenderId === userId), [recommendations, userId])
 
@@ -66,6 +73,22 @@ function SignedInApp({
     for (const r of sent) seen.set(r.recipientId, r.recipientName)
     return [...seen.entries()]
   }, [sent])
+
+  const peopleYouTrust = useMemo(() => {
+    const byRecommender = new Map<string, { name: string; scores: number[] }>()
+    for (const r of received) {
+      const key = r.recommenderId ?? `external:${r.recommenderName}`
+      const entry = byRecommender.get(key) ?? { name: r.recommenderName, scores: [] }
+      if (r.score !== null) entry.scores.push(r.score)
+      byRecommender.set(key, entry)
+    }
+    return [...byRecommender.entries()].map(([key, { name, scores }]) => ({
+      key,
+      name,
+      averageScore: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null,
+      ratedCount: scores.length,
+    }))
+  }, [received])
 
   async function refresh() {
     try {
@@ -117,6 +140,29 @@ function SignedInApp({
     }
   }
 
+  async function handleLogManual(e: FormEvent) {
+    e.preventDefault()
+    if (!manualTitle.trim() || !manualRecommenderName.trim()) return
+
+    setIsSubmittingManual(true)
+    try {
+      await logManualRecommendation(token, {
+        externalRecommenderName: manualRecommenderName.trim(),
+        thingTitle: manualTitle.trim(),
+        mediaType: manualMediaType,
+        note: manualNote.trim() || undefined,
+      })
+      setManualRecommenderName('')
+      setManualTitle('')
+      setManualNote('')
+      await refresh()
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to log recommendation')
+    } finally {
+      setIsSubmittingManual(false)
+    }
+  }
+
   async function handleRate(id: string, score: number) {
     try {
       await rateRecommendation(token, id, score)
@@ -152,6 +198,19 @@ function SignedInApp({
                 </li>
               )
             })}
+          </ul>
+        </section>
+      )}
+
+      {peopleYouTrust.length > 0 && (
+        <section>
+          <h2>How much you trust people's recommendations</h2>
+          <ul>
+            {peopleYouTrust.map(({ key, name, averageScore, ratedCount }) => (
+              <li key={key}>
+                {name}: {ratedCount > 0 ? `${averageScore?.toFixed(1)} / 10 (${ratedCount} rated)` : 'no ratings yet'}
+              </li>
+            ))}
           </ul>
         </section>
       )}
@@ -193,6 +252,47 @@ function SignedInApp({
           </label>
           <button type="submit" disabled={isSubmitting}>
             Recommend
+          </button>
+        </form>
+      </section>
+
+      <section>
+        <h2>Log something someone recommended to you</h2>
+        <p className="hint">For recommendations from people who aren't on ThingRecommender.</p>
+        <form onSubmit={handleLogManual}>
+          <label>
+            Their name
+            <input
+              value={manualRecommenderName}
+              onChange={(e) => setManualRecommenderName(e.target.value)}
+              placeholder="Nathan"
+              required
+            />
+          </label>
+          <label>
+            Title
+            <input value={manualTitle} onChange={(e) => setManualTitle(e.target.value)} required />
+          </label>
+          <label>
+            Type
+            <select value={manualMediaType} onChange={(e) => setManualMediaType(e.target.value as MediaType)}>
+              {MEDIA_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Note
+            <input
+              value={manualNote}
+              onChange={(e) => setManualNote(e.target.value)}
+              placeholder="said it was unmissable..."
+            />
+          </label>
+          <button type="submit" disabled={isSubmittingManual}>
+            Log it
           </button>
         </form>
       </section>

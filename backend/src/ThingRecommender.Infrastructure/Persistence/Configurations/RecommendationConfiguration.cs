@@ -10,6 +10,7 @@ public class RecommendationConfiguration : IEntityTypeConfiguration<Recommendati
     {
         builder.Property(r => r.Note).HasMaxLength(1000);
         builder.Property(r => r.Score).HasAnnotation("Range", new[] { 1, 10 });
+        builder.Property(r => r.ExternalRecommenderName).HasMaxLength(200);
 
         builder.HasOne(r => r.Recommender)
             .WithMany()

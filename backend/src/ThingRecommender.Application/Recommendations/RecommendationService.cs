@@ -3,6 +3,7 @@ using ThingRecommender.Application.Abstractions;
 using ThingRecommender.Application.Common;
 using ThingRecommender.Application.ExternalLinks;
 using ThingRecommender.Domain.Entities;
+using ThingRecommender.Domain.Enums;
 
 namespace ThingRecommender.Application.Recommendations;
 
@@ -16,16 +17,7 @@ public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup
         var recipient = await db.Users.FirstOrDefaultAsync(u => u.Email == request.RecipientEmail, cancellationToken)
             ?? throw new NotFoundException($"No account found for {request.RecipientEmail}.");
 
-        var thing = await db.Things.FirstOrDefaultAsync(
-            t => t.Title == request.ThingTitle && t.MediaType == request.MediaType,
-            cancellationToken);
-
-        if (thing is null)
-        {
-            var externalUrl = await externalLinkLookup.TryFindUrlAsync(request.ThingTitle, request.MediaType, cancellationToken);
-            thing = new Thing { Title = request.ThingTitle, MediaType = request.MediaType, ExternalUrl = externalUrl };
-            db.Things.Add(thing);
-        }
+        var thing = await FindOrCreateThingAsync(request.ThingTitle, request.MediaType, cancellationToken);
 
         var recommendation = new Recommendation
         {
@@ -41,6 +33,27 @@ public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup
         return ToResponse(recommendation, thing, recommender, recipient);
     }
 
+    public async Task<RecommendationResponse> LogManualAsync(Guid recipientId, LogManualRecommendationRequest request, CancellationToken cancellationToken = default)
+    {
+        var recipient = await db.Users.FirstOrDefaultAsync(u => u.Id == recipientId, cancellationToken)
+            ?? throw new NotFoundException($"No account with id {recipientId}.");
+
+        var thing = await FindOrCreateThingAsync(request.ThingTitle, request.MediaType, cancellationToken);
+
+        var recommendation = new Recommendation
+        {
+            ExternalRecommenderName = request.ExternalRecommenderName,
+            RecipientId = recipient.Id,
+            ThingId = thing.Id,
+            Note = request.Note
+        };
+        db.Recommendations.Add(recommendation);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return ToResponse(recommendation, thing, recommender: null, recipient);
+    }
+
     public async Task<IReadOnlyList<RecommendationResponse>> GetForUserAsync(Guid currentUserId, CancellationToken cancellationToken = default)
     {
         return await db.Recommendations
@@ -52,7 +65,7 @@ public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup
             .Select(r => new RecommendationResponse(
                 r.Id,
                 r.RecommenderId,
-                r.Recommender!.DisplayName,
+                r.Recommender != null ? r.Recommender.DisplayName : r.ExternalRecommenderName!,
                 r.RecipientId,
                 r.Recipient!.DisplayName,
                 r.ThingId,
@@ -85,7 +98,7 @@ public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup
 
         await db.SaveChangesAsync(cancellationToken);
 
-        return ToResponse(recommendation, recommendation.Thing!, recommendation.Recommender!, recommendation.Recipient!);
+        return ToResponse(recommendation, recommendation.Thing!, recommendation.Recommender, recommendation.Recipient!);
     }
 
     public async Task<RecommendationStrengthResponse> GetStrengthAsync(Guid currentUserId, Guid recommenderId, Guid recipientId, CancellationToken cancellationToken = default)
@@ -107,10 +120,24 @@ public class RecommendationService(IApplicationDbContext db, IExternalLinkLookup
             ratedScores.Count);
     }
 
-    private static RecommendationResponse ToResponse(Recommendation recommendation, Thing thing, User recommender, User recipient) => new(
+    private async Task<Thing> FindOrCreateThingAsync(string title, MediaType mediaType, CancellationToken cancellationToken)
+    {
+        var thing = await db.Things.FirstOrDefaultAsync(t => t.Title == title && t.MediaType == mediaType, cancellationToken);
+        if (thing is not null)
+        {
+            return thing;
+        }
+
+        var externalUrl = await externalLinkLookup.TryFindUrlAsync(title, mediaType, cancellationToken);
+        thing = new Thing { Title = title, MediaType = mediaType, ExternalUrl = externalUrl };
+        db.Things.Add(thing);
+        return thing;
+    }
+
+    private static RecommendationResponse ToResponse(Recommendation recommendation, Thing thing, User? recommender, User recipient) => new(
         recommendation.Id,
         recommendation.RecommenderId,
-        recommender.DisplayName,
+        recommender?.DisplayName ?? recommendation.ExternalRecommenderName!,
         recommendation.RecipientId,
         recipient.DisplayName,
         recommendation.ThingId,

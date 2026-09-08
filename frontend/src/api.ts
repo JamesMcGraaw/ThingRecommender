@@ -4,7 +4,7 @@ export type MediaType = 'Film' | 'TvShow' | 'Book' | 'Comic' | 'Restaurant' | 'V
 
 export interface Recommendation {
   id: string
-  recommenderId: string
+  recommenderId: string | null
   recommenderName: string
   recipientId: string
   recipientName: string
@@ -20,6 +20,13 @@ export interface Recommendation {
 
 export interface CreateRecommendationInput {
   recipientEmail: string
+  thingTitle: string
+  mediaType: MediaType
+  note?: string
+}
+
+export interface LogManualRecommendationInput {
+  externalRecommenderName: string
   thingTitle: string
   mediaType: MediaType
   note?: string
@@ -75,6 +82,17 @@ export function getRecommendations(token: string): Promise<Recommendation[]> {
 
 export function createRecommendation(token: string, input: CreateRecommendationInput): Promise<Recommendation> {
   return fetch(`${apiBaseUrl}/api/recommendations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
+    body: JSON.stringify(input),
+  }).then((r) => toJson<Recommendation>(r))
+}
+
+export function logManualRecommendation(
+  token: string,
+  input: LogManualRecommendationInput,
+): Promise<Recommendation> {
+  return fetch(`${apiBaseUrl}/api/recommendations/manual`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders(token) },
     body: JSON.stringify(input),
