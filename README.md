@@ -1,5 +1,7 @@
 # ThingRecommender
 
+[![Backend tests](https://github.com/JamesMcGraaw/ThingRecommender/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/JamesMcGraaw/ThingRecommender/actions/workflows/backend-tests.yml)
+
 Person A recommends a film, TV show, book, comic, or restaurant to Person B. Person B rates it once
 they've experienced it. Over time this builds a recommendation-strength score between the two people —
 how confidently you can trust Person A's taste, specifically for you.
